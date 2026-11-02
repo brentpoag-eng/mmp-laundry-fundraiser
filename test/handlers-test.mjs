@@ -65,6 +65,24 @@ assert.equal((await put("nope", { customerName: "X", phone: "8125550000", qty: q
 const afterEdit = (await (await orders(admin("/api/orders"))).json()).orders.find((o) => o.id === target.id);
 assert.equal(afterEdit.customerName, "Edited Name");
 
+// paid toggle
+const patch = (id, body, key = "test-key-123") =>
+  orders(new Request("http://x/api/orders?id=" + id, { method: "PATCH", body: JSON.stringify(body), headers: { "x-admin-key": key } }));
+assert.equal((await patch(target.id, { paid: true }, "wrong")).status, 401);
+assert.equal((await patch(target.id, { paid: "yes" })).status, 400);
+assert.equal((await patch("nope", { paid: true })).status, 404);
+j = await (await patch(target.id, { paid: true })).json();
+assert.equal(j.order.paid, true); assert.ok(j.order.paidAt);
+let csv2 = await (await exp(admin("/api/export?format=csv"))).text();
+assert.match(csv2, /,Yes,20/);
+writeFileSync(new URL("./out-paid.pdf", import.meta.url), Buffer.from(await (await exp(admin(`/api/export?format=pdf&id=${target.id}`))).arrayBuffer()));
+// editing keeps paid status
+r = await put(target.id, { customerName: "Edited Name", phone: "8125559999", qty: q2 });
+assert.equal((await r.json()).order.paid, true);
+j = await (await patch(target.id, { paid: false })).json();
+assert.equal(j.order.paid, false); assert.equal(j.order.paidAt, null);
+await patch(target.id, { paid: true });
+
 // delete
 assert.equal((await orders(admin(`/api/orders?id=${list[0].id}`, "DELETE"))).status, 200);
 list = (await (await orders(admin("/api/orders"))).json()).orders;

@@ -16,6 +16,8 @@ export function ordersToCsv(orders) {
     "Email",
     "Total Units",
     "Total Cost",
+    "Paid",
+    "Paid At",
     ...products.map((p) => `${p.category} - ${p.group} - ${p.name}`),
   ];
   const rows = orders.map((o) => [
@@ -26,6 +28,8 @@ export function ordersToCsv(orders) {
     o.email,
     o.units,
     o.total,
+    o.paid ? "Yes" : "No",
+    o.paidAt || "",
     ...o.qty.map((q) => (q > 0 ? q : "")),
   ]);
   return [head, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";

@@ -34,6 +34,8 @@
   .msg { color:var(--danger); font-weight:600; min-height:1.3em; }
   .hidden { display:none !important; }
   small { color: var(--muted); }
+  .btn.paid { background:#1f7a3d; }
+  .btn.unpaid { background:#fff; color:#8a5a00; border:1px solid #c98a00; }
   dialog { border:1px solid var(--line); border-radius:14px; padding:0; width:min(560px, 94vw); max-height:92vh; }
   dialog::backdrop { background: rgba(20,30,50,.45); }
   .dlg { padding:16px; display:flex; flex-direction:column; gap:10px; }
@@ -66,7 +68,9 @@
       <div class="stats">
         <div class="stat"><b id="sOrders">0</b>orders</div>
         <div class="stat"><b id="sUnits">0</b>items</div>
-        <div class="stat"><b id="sTotal">$0</b>total owed</div>
+        <div class="stat"><b id="sTotal">$0</b>total ordered</div>
+        <div class="stat"><b id="sPaid">$0</b>collected</div>
+        <div class="stat"><b id="sDue">$0</b>outstanding</div>
       </div>
       <div class="actions">
         <button class="btn" id="dlPdf">Download master PDF</button>
@@ -84,6 +88,7 @@
 
     <div class="card">
       <b>All orders</b> <small>(newest first)</small>
+      <label style="margin-left:12px;font-size:.9rem"><input type="checkbox" id="unpaidOnly"> Unpaid only</label>
       <div class="tablewrap"><table id="orders"></table></div>
     </div>
   </div>
@@ -188,10 +193,24 @@ function tableRow(cells, header = false) {
   return tr;
 }
 
+let allOrders = [];
+$("unpaidOnly").onchange = () => render(allOrders);
+
+async function setPaid(o, paid) {
+  $("appMsg").textContent = "";
+  try { await api("/api/orders?id=" + encodeURIComponent(o.id), { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ paid }) }); await load(); }
+  catch (e) { $("appMsg").textContent = e.message; }
+}
+
 function render(orders) {
+  allOrders = orders;
+  const sum = (arr) => arr.reduce((s, o) => s + o.total, 0);
   $("sOrders").textContent = orders.length;
   $("sUnits").textContent = orders.reduce((s, o) => s + o.units, 0);
-  $("sTotal").textContent = "$" + orders.reduce((s, o) => s + o.total, 0);
+  $("sTotal").textContent = "$" + sum(orders);
+  $("sPaid").textContent = "$" + sum(orders.filter((o) => o.paid));
+  $("sDue").textContent = "$" + sum(orders.filter((o) => !o.paid));
+  const shown = $("unpaidOnly").checked ? orders.filter((o) => !o.paid) : orders;
 
   const by = new Map();
   for (const o of orders) {
@@ -206,8 +225,8 @@ function render(orders) {
   if (!by.size) bs.append(tableRow([{ t: "No orders yet." }, { t: "" }, { t: "" }, { t: "" }]));
 
   const tb = $("orders"); tb.replaceChildren();
-  tb.append(tableRow([{ t: "When" }, { t: "Seller" }, { t: "Customer" }, { t: "Items" }, { t: "Total", num: 1 }, { t: "" }], true));
-  for (const o of orders) {
+  tb.append(tableRow([{ t: "When" }, { t: "Seller" }, { t: "Customer" }, { t: "Items" }, { t: "Total", num: 1 }, { t: "Paid" }, { t: "" }], true));
+  for (const o of shown) {
     const items = el("div");
     o.qty.forEach((q, i) => { if (q > 0) items.append(el("div", `${q} × ${products[i].name} (${products[i].group})`, "small")); });
     const who = el("div"); who.append(el("b", o.customerName), el("div", o.phone + (o.email ? " · " + o.email : ""), "small"));
@@ -220,12 +239,15 @@ function render(orders) {
       try { await api("/api/orders?id=" + encodeURIComponent(o.id), { method: "DELETE" }); await load(); } catch (e) { $("appMsg").textContent = e.message; }
     };
     acts.append(pdf, edit, del);
+    const paidBtn = el("button", o.paid ? "\u2713 Paid" : "Mark paid", o.paid ? "btn sm paid" : "btn sm unpaid");
+    paidBtn.title = o.paid ? "Paid " + new Date(o.paidAt).toLocaleString() + " (click to undo)" : "Mark this order as paid";
+    paidBtn.onclick = () => (o.paid && !confirm(`Mark ${o.customerName}'s order as NOT paid?`) ? null : setPaid(o, !o.paid));
     tb.append(tableRow([
       { t: new Date(o.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) },
-      { t: o.seller }, { node: who }, { node: items }, { t: "$" + o.total, num: 1 }, { node: acts },
+      { t: o.seller }, { node: who }, { node: items }, { t: "$" + o.total, num: 1 }, { node: paidBtn }, { node: acts },
     ]));
   }
-  if (!orders.length) tb.append(tableRow([{ t: "No orders yet." }, { t: "" }, { t: "" }, { t: "" }, { t: "" }, { t: "" }]));
+  if (!shown.length) tb.append(tableRow([{ t: orders.length ? "No unpaid orders." : "No orders yet." }, { t: "" }, { t: "" }, { t: "" }, { t: "" }, { t: "" }, { t: "" }]));
 }
 
 async function load() {

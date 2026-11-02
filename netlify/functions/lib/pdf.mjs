@@ -22,6 +22,7 @@ async function fillPage(seller, rows) {
   const colUnits = new Array(products.length).fill(0);
   let sumUnits = 0;
   let sumCost = 0;
+  let sumPaid = 0;
 
   rows.forEach((o, r) => {
     set(`cust_name_${r}`, o.customerName);
@@ -32,6 +33,10 @@ async function fillPage(seller, rows) {
     });
     set(`tot_units_${r}`, o.units);
     set(`tot_cost_${r}`, money(o.total), 6.5);
+    if (o.paid) {
+      set(`tot_paid_${r}`, money(o.total), 6.5);
+      sumPaid += o.total;
+    }
     sumUnits += o.units;
     sumCost += o.total;
   });
@@ -39,6 +44,7 @@ async function fillPage(seller, rows) {
   colUnits.forEach((n, c) => n > 0 && set(`sum_${c}`, n));
   set("sum_units", sumUnits);
   set("sum_cost", money(sumCost), 6.5);
+  if (sumPaid > 0) set("sum_paid", money(sumPaid), 6.5);
 
   form.flatten();
   return doc;
