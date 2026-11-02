@@ -67,6 +67,7 @@
   .admin-link:hover, .admin-link:focus-visible { background: var(--blue-soft); }
   .wrap { position: relative; }
   .done h2 { color: var(--ok); }
+  .done a { color: var(--blue); }
   .done ul { padding-left: 20px; margin: 8px 0; }
   .hidden { display: none !important; }
 </style>
@@ -228,9 +229,17 @@ function showDone(body) {
   const ul = document.createElement("ul");
   qty.forEach((q, i) => { if (q > 0) { const li = document.createElement("li"); li.textContent = `${q} × ${shortGroup(products[i].group)}: ${products[i].name}`; ul.append(li); } });
   const pay = document.createElement("p");
-  pay.textContent = site.payableTo ? `Please make checks payable to: ${site.payableTo}.` : "Please give payment to your seller.";
+  if (site.payableTo) pay.textContent = `Please make checks payable to: ${site.payableTo}.`;
+  else pay.hidden = true;
   const ask = document.createElement("p");
-  ask.textContent = `Questions? Please contact ${site.contact}.`;
+  ask.append("To coordinate payment, please call or text ");
+  site.contacts.forEach((c, i) => {
+    const a = document.createElement("a");
+    a.href = "tel:+1" + c.phone; a.textContent = formatPhone(c.phone); a.style.fontWeight = "700";
+    if (i) ask.append(i === site.contacts.length - 1 ? " or " : ", ");
+    ask.append(c.name + " at ", a);
+  });
+  ask.append(".");
   const again = document.createElement("button"); again.className = "btn ghost"; again.type = "button"; again.textContent = "Place another order";
   again.onclick = () => { qty.fill(0); update(); $("customerName").value = ""; $("phone").value = ""; $("email").value = ""; $("done").classList.add("hidden"); $("form").classList.remove("hidden"); $("bar").classList.remove("hidden"); btn.disabled = false; btn.textContent = "Place order"; window.scrollTo(0, 0); };
   done.append(h, p, ul, pay, ask, again);
