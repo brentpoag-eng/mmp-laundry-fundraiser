@@ -7,6 +7,8 @@ export const site = {
   seller: "Aletha Poag",
   // Venmo username (no @) used to prefill the amount and note; venmoUrl is the fallback profile link.
   venmoUser: "Brent-Poag",
+  // PayPal.me name (paypal.me/<name>/<amount>).
+  paypalMe: "brentpoag",
   venmoUrl: "https://venmo.com/code?user_id=3145986805334016053&created=1793625193",
   // Shown on the order confirmation screen (tap-to-call links).
   contacts: [

@@ -69,6 +69,7 @@
   .done h2 { color: var(--ok); }
   .done a { color: var(--blue); }
   .done .venmo-btn { display: block; text-align: center; text-decoration: none; background: #3d95ce; color: #fff; font-size: 1.1rem; padding: 15px 18px; border-radius: 12px; margin: 14px 0 4px; }
+  .done .paypal-btn { background: #0070ba; margin-top: 6px; }
   .done .venmo-note { margin: 6px 0 14px; font-size: .88rem; color: var(--muted); text-align: center; }
   .done ul { padding-left: 20px; margin: 8px 0; }
   .hidden { display: none !important; }
@@ -252,8 +253,19 @@ function showDone(body) {
     }
     venmo.append(vb, vn);
   }
+  if (site.paypalMe) {
+    const pb = document.createElement("a");
+    pb.className = "btn venmo-btn paypal-btn";
+    pb.href = `https://paypal.me/${encodeURIComponent(site.paypalMe)}/${total}USD`;
+    pb.target = "_blank"; pb.rel = "noopener";
+    pb.textContent = `Pay $${total} with PayPal`;
+    const pn = document.createElement("p");
+    pn.className = "venmo-note";
+    pn.textContent = `Please add your name (${body.customerName.trim()}) in the PayPal note.`;
+    venmo.append(pb, pn);
+  }
   const ask = document.createElement("p");
-  ask.append(site.venmoUrl ? "Prefer cash or check? Please call or text " : "To coordinate payment, please call or text ");
+  ask.append(site.venmoUrl || site.paypalMe ? "Prefer cash or check? Please call or text " : "To coordinate payment, please call or text ");
   site.contacts.forEach((c, i) => {
     const a = document.createElement("a");
     a.href = "tel:+1" + c.phone; a.textContent = formatPhone(c.phone); a.style.fontWeight = "700";
