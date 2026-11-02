@@ -32,8 +32,18 @@
   .grid2 { display: grid; gap: 0 12px; grid-template-columns: 1fr; }
   @media (min-width: 560px) { .grid2 { grid-template-columns: 1fr 1fr; } }
   .cat { padding: 0; overflow: hidden; }
-  .cat-head { display: flex; justify-content: space-between; align-items: center; background: var(--blue-soft); padding: 12px 16px; font-weight: 700; }
-  .cat-head.green { background: var(--green-soft); }
+  .cat { scroll-margin-top: 12px; }
+  .cat-head { display: flex; gap: 14px; align-items: center; background: var(--blue-soft); padding: 12px 16px; }
+  .pic { flex: none; width: 84px; height: 84px; border-radius: 12px; overflow: hidden; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; }
+  .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .info { flex: 1; min-width: 0; }
+  .ttl { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ttl h3 { margin: 0; font-size: 1.08rem; }
+  .blurb { margin: 4px 0 0; font-size: .85rem; color: #34425a; line-height: 1.35; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; margin: 6px -2px 0; scrollbar-width: thin; }
+  .chip { flex: none; text-decoration: none; color: var(--blue); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: .85rem; font-weight: 600; white-space: nowrap; }
+  .chip b { color: var(--ink); margin-left: 2px; }
+  @media (max-width: 420px) { .pic { width: 64px; height: 64px; } .cat-head { gap: 10px; padding: 12px; } }
   .price { background: var(--blue); color: #fff; border-radius: 999px; padding: 2px 12px; font-size: .95rem; }
   .group { padding: 10px 16px 4px; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; border-top: 1px solid #eef2f7; }
@@ -102,7 +112,7 @@
 </div>
 
 <script type="module">
-import { site, products, formatPhone } from "/catalog.js";
+import { site, products, formatPhone, sections, shortGroup } from "/catalog.js";
 
 const $ = (id) => document.getElementById(id);
 const qty = new Array(products.length).fill(0);
@@ -114,8 +124,6 @@ $("period").textContent = "Seller: " + site.seller + " • Sale period: " + site
 $("footnote").textContent = site.footnote;
 document.title = site.title;
 
-
-const GREEN = new Set(["Fabric Softener", "Scent Beads", "Dish Paks"]);
 
 function update() {
   const units = qty.reduce((s, q) => s + q, 0);
@@ -129,27 +137,47 @@ function setQty(i, v) {
   qty[i] = n; update();
 }
 
-const cats = [...new Set(products.map((p) => p.category))];
-for (const cat of cats) {
-  const inCat = products.map((p, i) => ({ p, i })).filter((x) => x.p.category === cat);
+const STAIN_ICON = '<svg viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><path d="M14 22h36l-3 34a4 4 0 0 1-4 4H21a4 4 0 0 1-4-4z" fill="#fff" stroke="#2f5d9b" stroke-width="3"/><path d="M12 22c0-6 8-10 20-10s20 4 20 10" fill="#dbe6f4" stroke="#2f5d9b" stroke-width="3"/><circle cx="32" cy="40" r="6" fill="#2f5d9b"/></svg>';
+
+const chips = document.createElement("nav");
+chips.className = "chips"; chips.setAttribute("aria-label", "Jump to a product");
+
+for (const sec of sections) {
+  const items = [];
+  for (const g of sec.groups) products.forEach((p, i) => { if (p.group === g.group) items.push({ p, i, label: g.label }); });
+  if (!items.length) continue;
+  const price = items[0].p.price;
+
+  const chip = document.createElement("a");
+  chip.href = "#" + sec.id; chip.className = "chip";
+  chip.append(document.createTextNode(sec.chip + " "), Object.assign(document.createElement("b"), { textContent: "$" + price }));
+  chips.append(chip);
+
   const card = document.createElement("section");
-  card.className = "card cat";
-  const head = document.createElement("div");
-  head.className = "cat-head" + (GREEN.has(cat) ? " green" : "");
-  const t = document.createElement("span"); t.textContent = cat;
-  const pr = document.createElement("span"); pr.className = "price"; pr.textContent = "$" + inCat[0].p.price + " each";
-  head.append(t, pr); card.append(head);
+  card.className = "card cat"; card.id = sec.id;
+
+  const head = document.createElement("div"); head.className = "cat-head";
+  const pic = document.createElement("div"); pic.className = "pic";
+  if (sec.image) { const im = document.createElement("img"); im.src = sec.image; im.alt = ""; im.width = 84; im.height = 84; im.loading = "lazy"; pic.append(im); }
+  else pic.innerHTML = STAIN_ICON;
+  const info = document.createElement("div"); info.className = "info";
+  const ttl = document.createElement("div"); ttl.className = "ttl";
+  const t = document.createElement("h3"); t.textContent = sec.title;
+  const pr = document.createElement("span"); pr.className = "price"; pr.textContent = "$" + price + " each";
+  ttl.append(t, pr);
+  const bl = document.createElement("p"); bl.className = "blurb"; bl.textContent = sec.blurb;
+  info.append(ttl, bl); head.append(pic, info); card.append(head);
 
   let lastGroup = null;
-  for (const { p, i } of inCat) {
-    if (p.group !== lastGroup) {
-      const g = document.createElement("div"); g.className = "group"; g.textContent = p.group; card.append(g);
-      lastGroup = p.group;
+  for (const { p, i, label } of items) {
+    if (label && p.group !== lastGroup) {
+      const g = document.createElement("div"); g.className = "group"; g.textContent = label; card.append(g);
     }
+    lastGroup = p.group;
     const row = document.createElement("div"); row.className = "row";
     const name = document.createElement("span"); name.className = "name"; name.textContent = p.name;
     const st = document.createElement("div"); st.className = "stepper";
-    const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.setAttribute("aria-label", "Remove one " + p.name);
+    const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "\u2212"; minus.setAttribute("aria-label", "Remove one " + p.name);
     const input = document.createElement("input"); input.type = "text"; input.inputMode = "numeric"; input.value = "0"; input.setAttribute("aria-label", "Quantity " + p.name);
     const plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.setAttribute("aria-label", "Add one " + p.name);
     minus.onclick = () => setQty(i, qty[i] - 1);
@@ -161,6 +189,7 @@ for (const cat of cats) {
   }
   $("catalog").append(card);
 }
+$("catalog").before(chips);
 update();
 
 $("phone").addEventListener("input", (e) => { e.target.value = formatPhone(e.target.value); });
@@ -197,7 +226,7 @@ function showDone(body) {
   const p = document.createElement("p");
   p.textContent = `${body.customerName.trim()}, your order for ${site.seller} is in. Total: $${total}.`;
   const ul = document.createElement("ul");
-  qty.forEach((q, i) => { if (q > 0) { const li = document.createElement("li"); li.textContent = `${q} × ${products[i].group}: ${products[i].name}`; ul.append(li); } });
+  qty.forEach((q, i) => { if (q > 0) { const li = document.createElement("li"); li.textContent = `${q} × ${shortGroup(products[i].group)}: ${products[i].name}`; ul.append(li); } });
   const pay = document.createElement("p");
   pay.textContent = site.payableTo ? `Please make checks payable to: ${site.payableTo}.` : "Please give payment to your seller.";
   const again = document.createElement("button"); again.className = "btn ghost"; again.type = "button"; again.textContent = "Place another order";

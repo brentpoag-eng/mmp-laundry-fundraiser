@@ -54,3 +54,61 @@ export function formatPhone(value) {
   if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
   return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
 }
+
+// How the order page presents the products. `groups` must match the `group` text above.
+// Image files live in /img (cropped from the vendor flyer). Presentation only: product order,
+// prices and PDF columns all come from `products`.
+const TIDE = "5 Gallon Liquid Tide (comparable, pump included)";
+const GAIN = "5 Gallon Liquid Gain (comparable, pump included)";
+const SOFT = "Comparable to Downy or Gain (pump included)";
+
+export const sections = [
+  {
+    id: "detergent", title: "Liquid Laundry Detergent", chip: "Detergent", image: "/img/detergent.jpg",
+    blurb: "5-gallon liquid laundry detergent with pump included. Lasts up to 500 loads per unit!",
+    groups: [{ group: TIDE, label: "Comparable to Tide" }, { group: GAIN, label: "Comparable to Gain" }],
+  },
+  {
+    id: "softener", title: "Fabric Softener", chip: "Softener", image: "/img/detergent.jpg",
+    blurb: "5-gallon fabric softener with pump included. Lasts up to 500 loads per unit!",
+    groups: [{ group: SOFT, label: "Comparable to Downy or Gain" }],
+  },
+  {
+    id: "stain", title: "Powder Stain Lifter", chip: "Stain Lifter", image: null,
+    blurb: "Oxy powder stain lifter in a 1 gallon pail with scoop.",
+    groups: [{ group: "Powder Stain Lifter", label: "" }],
+  },
+  {
+    id: "sheets", title: "Dissolving Laundry Sheets", chip: "Sheets", image: "/img/sheets.jpg",
+    blurb: "Our newest product! Eco-friendly and light-weight. 520 sheets infused with soap that dissolve in your washing machine.",
+    groups: [{ group: "ECO Friendly Laundry Detergent Sheets", label: "" }],
+  },
+  {
+    id: "paks", title: "Laundry Paks", chip: "Laundry Paks", image: "/img/paks.jpg",
+    blurb: "Packaged 225 paks per pail. You'll save 35% over retail prices!",
+    groups: [{ group: "Liquid PAKS", label: "" }],
+  },
+  {
+    id: "beads", title: "Scent Beads", chip: "Scent Beads", image: "/img/beads.jpg",
+    blurb: "Concentrated scent beads boost the clean laundry smell to help keep your clothes smelling fresh for weeks after washing!",
+    groups: [{ group: "Beads", label: "" }],
+  },
+  {
+    id: "dishsoap", title: "Dish Soap", chip: "Dish Soap", image: "/img/detergent.jpg",
+    blurb: "Liquid dish soap in a 5 gallon pail with antibacterial pump.",
+    groups: [{ group: "Liquid 5 Gal", label: "" }],
+  },
+  {
+    id: "dishpaks", title: "Dish Paks", chip: "Dish Paks", image: "/img/dishpaks.jpg",
+    blurb: "Our liquid dish paks are tough on grease and grime! Every pail contains 200 paks.",
+    groups: [{ group: "Gel", label: "" }],
+  },
+  {
+    id: "trash", title: "Trash Bags", chip: "Trash Bags", image: "/img/trash.jpg",
+    blurb: "Three sizes, suitable for office, kitchen, and leaf. There's a size for every need! Made in USA.",
+    groups: [{ group: "House / Outdoor / Leaf", label: "" }],
+  },
+];
+
+// "5 Gallon Liquid Tide (comparable, pump included)" -> "5 Gallon Liquid Tide"
+export const shortGroup = (g) => String(g).replace(/\s*\(.*?\)\s*/g, " ").trim();
