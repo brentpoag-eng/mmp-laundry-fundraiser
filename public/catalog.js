@@ -5,6 +5,8 @@ export const site = {
   title: "MMP Laundry Fundraiser",
   // Every order is credited to this seller (shown on the page and printed on the PDF).
   seller: "Aletha Poag",
+  // Shown on the order confirmation screen.
+  contact: "Brent or Laura Poag",
   supporting: "FJRIMB & FJ Reitz Theatre",
   salePeriod: "10/26 - 11/10/26",
   // Who checks are made out to. Shown on the page and printed on the PDF. Fill this in.

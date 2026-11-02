@@ -229,9 +229,11 @@ function showDone(body) {
   qty.forEach((q, i) => { if (q > 0) { const li = document.createElement("li"); li.textContent = `${q} × ${shortGroup(products[i].group)}: ${products[i].name}`; ul.append(li); } });
   const pay = document.createElement("p");
   pay.textContent = site.payableTo ? `Please make checks payable to: ${site.payableTo}.` : "Please give payment to your seller.";
+  const ask = document.createElement("p");
+  ask.textContent = `Questions? Please contact ${site.contact}.`;
   const again = document.createElement("button"); again.className = "btn ghost"; again.type = "button"; again.textContent = "Place another order";
   again.onclick = () => { qty.fill(0); update(); $("customerName").value = ""; $("phone").value = ""; $("email").value = ""; $("done").classList.add("hidden"); $("form").classList.remove("hidden"); $("bar").classList.remove("hidden"); btn.disabled = false; btn.textContent = "Place order"; window.scrollTo(0, 0); };
-  done.append(h, p, ul, pay, again);
+  done.append(h, p, ul, pay, ask, again);
   $("form").classList.add("hidden"); $("bar").classList.add("hidden"); done.classList.remove("hidden");
   window.scrollTo(0, 0);
 }
