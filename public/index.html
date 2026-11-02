@@ -12,7 +12,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--bg); padding-bottom: 96px; }
   .wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
-  header.top { text-align: center; padding: 20px 8px 8px; }
+  header.top { text-align: center; padding: 44px 8px 8px; }
   header.top h1 { margin: 0 0 4px; font-size: 1.5rem; color: var(--blue); }
   header.top p { margin: 2px 0; color: var(--muted); }
   header.top .support { color: var(--ink); font-weight: 600; font-style: italic; }
@@ -47,6 +47,9 @@
   .btn.ghost { background: #fff; color: var(--blue); border: 1px solid var(--blue); }
   .err { color: var(--danger); font-weight: 600; margin: 10px 0 0; min-height: 1.2em; }
   .foot { font-size: .78rem; color: var(--muted); text-align: center; margin: 22px 4px; }
+  .admin-link { position: absolute; top: 12px; right: 12px; font-size: .8rem; font-weight: 600; color: var(--blue); text-decoration: none; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; }
+  .admin-link:hover, .admin-link:focus-visible { background: var(--blue-soft); }
+  .wrap { position: relative; }
   .done h2 { color: var(--ok); }
   .done ul { padding-left: 20px; margin: 8px 0; }
   .hidden { display: none !important; }
@@ -54,6 +57,7 @@
 </head>
 <body>
 <div class="wrap">
+  <a class="admin-link" href="/admin.html">Admin login</a>
   <header class="top">
     <h1 id="org"></h1>
     <p class="support" id="supporting"></p>
