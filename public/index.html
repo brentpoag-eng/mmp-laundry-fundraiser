@@ -71,7 +71,7 @@
         <div><label for="customerName">Your name</label>
           <input id="customerName" type="text" maxlength="60" autocomplete="name" required></div>
         <div><label for="phone">Phone</label>
-          <input id="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel" required></div>
+          <input id="phone" type="tel" maxlength="16" placeholder="(812) 555-0123" autocomplete="tel" inputmode="tel" required></div>
         <div><label for="email">Email <span class="opt">(optional)</span></label>
           <input id="email" type="email" maxlength="80" autocomplete="email"></div>
       </div>
@@ -95,7 +95,7 @@
 </div>
 
 <script type="module">
-import { site, products } from "/catalog.js";
+import { site, products, formatPhone } from "/catalog.js";
 
 const $ = (id) => document.getElementById(id);
 const qty = new Array(products.length).fill(0);
@@ -156,6 +156,8 @@ for (const cat of cats) {
 }
 update();
 
+$("phone").addEventListener("input", (e) => { e.target.value = formatPhone(e.target.value); });
+
 const btn = $("submit"), err = $("err");
 btn.onclick = async () => {
   err.textContent = "";
@@ -164,7 +166,7 @@ btn.onclick = async () => {
     email: $("email").value, website: $("website").value, qty,
   };
   if (!body.customerName.trim()) return fail("Please enter your name.", "customerName");
-  if (body.phone.replace(/\D/g, "").length < 7) return fail("Please enter a valid phone number.", "phone");
+  if (formatPhone(body.phone).replace(/\D/g, "").length !== 10) return fail("Please enter a valid 10-digit phone number.", "phone");
   if (!qty.some((q) => q > 0)) return fail("Add at least one item to your order.");
 
   btn.disabled = true; btn.textContent = "Sending…";

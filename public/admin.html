@@ -29,6 +29,19 @@
   .msg { color:var(--danger); font-weight:600; min-height:1.3em; }
   .hidden { display:none !important; }
   small { color: var(--muted); }
+  dialog { border:1px solid var(--line); border-radius:14px; padding:0; width:min(560px, 94vw); max-height:92vh; }
+  dialog::backdrop { background: rgba(20,30,50,.45); }
+  .dlg { padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .dlg h2 { margin:0; font-size:1.1rem; color:var(--blue); }
+  .dlg label { font-size:.82rem; font-weight:600; display:block; margin-bottom:3px; }
+  .dlg input[type=text], .dlg input[type=tel], .dlg input[type=email] { width:100%; padding:9px 10px; font:inherit; border:1px solid var(--line); border-radius:8px; }
+  .items { max-height:42vh; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+  .item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 10px; border-bottom:1px solid #eef2f7; }
+  .item:last-child { border-bottom:0; }
+  .item .grp { font-size:.72rem; color:var(--muted); display:block; }
+  .item input { width:62px; padding:7px 6px; text-align:center; font:inherit; border:1px solid var(--line); border-radius:8px; }
+  .dlg-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .dlg-foot b { font-size:1.1rem; }
 </style>
 </head>
 <body>
@@ -71,8 +84,23 @@
   </div>
 </div>
 
+<dialog id="dlg">
+  <form class="dlg" method="dialog" id="editForm" novalidate>
+    <h2>Edit order</h2>
+    <div><label for="eName">Customer name</label><input id="eName" type="text" maxlength="60"></div>
+    <div><label for="ePhone">Phone</label><input id="ePhone" type="tel" maxlength="16"></div>
+    <div><label for="eEmail">Email (optional)</label><input id="eEmail" type="email" maxlength="80"></div>
+    <div class="items" id="eItems"></div>
+    <p class="msg" id="eMsg"></p>
+    <div class="dlg-foot">
+      <span><b id="eTotal">$0</b> <small id="eCount"></small></span>
+      <span><button type="button" class="btn ghost" id="eCancel">Cancel</button> <button type="button" class="btn" id="eSave">Save changes</button></span>
+    </div>
+  </form>
+</dialog>
+
 <script type="module">
-import { products } from "/catalog.js";
+import { products, formatPhone } from "/catalog.js";
 
 const $ = (id) => document.getElementById(id);
 let key = "";
@@ -95,6 +123,55 @@ async function download(path, filename) {
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   } catch (e) { $("appMsg").textContent = e.message; }
 }
+
+// ---- edit dialog ----
+const dlg = $("dlg");
+let editing = null, editQty = [];
+const inputs = [];
+function recalcEdit() {
+  const units = editQty.reduce((a, q) => a + q, 0);
+  const total = editQty.reduce((a, q, i) => a + q * products[i].price, 0);
+  $("eTotal").textContent = "$" + total;
+  $("eCount").textContent = units + (units === 1 ? " item" : " items");
+}
+(function buildItems() {
+  let last = null;
+  products.forEach((p, i) => {
+    const row = el("div", null, "item");
+    const left = el("div");
+    if (p.group !== last) { left.append(el("span", p.category + " \u2014 " + p.group, "grp")); last = p.group; }
+    left.append(el("span", p.name + "  ($" + p.price + ")"));
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.inputMode = "numeric"; inp.value = "0"; inp.setAttribute("aria-label", p.name);
+    inp.onfocus = () => inp.select();
+    inp.oninput = () => { const n = Math.floor(Number(inp.value.replace(/\D/g, ""))) || 0; editQty[i] = Math.min(99, n); recalcEdit(); };
+    inp.onblur = () => { inp.value = editQty[i]; };
+    inputs[i] = inp;
+    row.append(left, inp);
+    $("eItems").append(row);
+  });
+})();
+$("ePhone").addEventListener("input", (e) => { e.target.value = formatPhone(e.target.value); });
+
+function openEdit(o) {
+  editing = o; editQty = o.qty.slice();
+  $("eName").value = o.customerName; $("ePhone").value = formatPhone(o.phone); $("eEmail").value = o.email || "";
+  inputs.forEach((inp, i) => (inp.value = editQty[i]));
+  $("eMsg").textContent = ""; recalcEdit(); dlg.showModal();
+}
+$("eCancel").onclick = () => dlg.close();
+$("eSave").onclick = async () => {
+  $("eMsg").textContent = "";
+  $("eSave").disabled = true;
+  try {
+    await api("/api/orders?id=" + encodeURIComponent(editing.id), {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ customerName: $("eName").value, phone: $("ePhone").value, email: $("eEmail").value, qty: editQty }),
+    });
+    dlg.close(); await load();
+  } catch (e) { $("eMsg").textContent = e.message; }
+  $("eSave").disabled = false;
+};
 
 function tableRow(cells, header = false) {
   const tr = document.createElement("tr");
@@ -131,12 +208,13 @@ function render(orders) {
     const who = el("div"); who.append(el("b", o.customerName), el("div", o.phone + (o.email ? " · " + o.email : ""), "small"));
     const acts = el("div");
     const pdf = el("button", "PDF", "btn sm ghost"); pdf.onclick = () => download("/api/export?format=pdf&id=" + encodeURIComponent(o.id), `order-${o.id}.pdf`);
+    const edit = el("button", "Edit", "btn sm"); edit.style.marginLeft = "6px"; edit.onclick = () => openEdit(o);
     const del = el("button", "Delete", "btn sm danger"); del.style.marginLeft = "6px";
     del.onclick = async () => {
       if (!confirm(`Delete the order from ${o.customerName}?`)) return;
       try { await api("/api/orders?id=" + encodeURIComponent(o.id), { method: "DELETE" }); await load(); } catch (e) { $("appMsg").textContent = e.message; }
     };
-    acts.append(pdf, del);
+    acts.append(pdf, edit, del);
     tb.append(tableRow([
       { t: new Date(o.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) },
       { t: o.seller }, { node: who }, { node: items }, { t: "$" + o.total, num: 1 }, { node: acts },
