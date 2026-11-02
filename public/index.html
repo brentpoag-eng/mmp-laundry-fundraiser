@@ -235,13 +235,21 @@ function showDone(body) {
   else pay.hidden = true;
   const venmo = document.createElement("div");
   venmo.className = "venmo";
-  if (site.venmoUrl) {
+  if (site.venmoUser) {
+    const note = `${site.title} - ${body.customerName.trim()}`;
     const vb = document.createElement("a");
-    vb.className = "btn venmo-btn"; vb.href = site.venmoUrl; vb.target = "_blank"; vb.rel = "noopener";
+    vb.className = "btn venmo-btn";
+    vb.href = "https://venmo.com/?" + new URLSearchParams({ txn: "pay", audience: "private", recipients: site.venmoUser, amount: String(total), note }).toString();
+    vb.target = "_blank"; vb.rel = "noopener";
     vb.textContent = `Pay $${total} with Venmo`;
     const vn = document.createElement("p");
     vn.className = "venmo-note";
-    vn.textContent = `Please include your name (${body.customerName.trim()}) in the Venmo note.`;
+    vn.append(`Pays @${site.venmoUser} with the note "${note}". `);
+    if (site.venmoUrl) {
+      const fb = document.createElement("a");
+      fb.href = site.venmoUrl; fb.target = "_blank"; fb.rel = "noopener"; fb.textContent = "Button not working?";
+      vn.append(fb);
+    }
     venmo.append(vb, vn);
   }
   const ask = document.createElement("p");

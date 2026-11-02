@@ -5,7 +5,8 @@ export const site = {
   title: "MMP Laundry Fundraiser",
   // Every order is credited to this seller (shown on the page and printed on the PDF).
   seller: "Aletha Poag",
-  // Venmo profile/pay link shown on the confirmation screen.
+  // Venmo username (no @) used to prefill the amount and note; venmoUrl is the fallback profile link.
+  venmoUser: "Brent-Poag",
   venmoUrl: "https://venmo.com/code?user_id=3145986805334016053&created=1793625193",
   // Shown on the order confirmation screen (tap-to-call links).
   contacts: [
