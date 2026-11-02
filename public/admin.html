@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>MMP Laundry Fundraiser Admin</title>
+<style>
+  :root { --blue:#2f5d9b; --ink:#17202e; --muted:#5b6678; --line:#cfd8e5; --bg:#f3f6fa; --danger:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  h1 { color: var(--blue); font-size: 1.4rem; margin: 8px 0 12px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  input[type=password] { padding:10px 12px; font:inherit; border:1px solid var(--line); border-radius:8px; width: min(320px, 100%); }
+  .btn { background:var(--blue); color:#fff; border:0; border-radius:8px; padding:10px 16px; font:inherit; font-weight:600; cursor:pointer; }
+  .btn.sm { padding:5px 10px; font-size:.85rem; }
+  .btn.ghost { background:#fff; color:var(--blue); border:1px solid var(--blue); }
+  .btn.danger { background:#fff; color:var(--danger); border:1px solid var(--danger); }
+  .stats { display:flex; gap:12px; flex-wrap:wrap; }
+  .stat { flex:1; min-width:120px; background:#eef3fa; border-radius:10px; padding:10px 14px; }
+  .stat b { display:block; font-size:1.4rem; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #eef2f7; vertical-align:top; }
+  th { font-size:.78rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
+  td.num, th.num { text-align:right; }
+  .tablewrap { overflow-x:auto; }
+  .msg { color:var(--danger); font-weight:600; min-height:1.3em; }
+  .hidden { display:none !important; }
+  small { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MMP Laundry Fundraiser: Admin</h1>
+
+  <div class="card" id="login">
+    <label for="key"><b>Admin key</b></label><br>
+    <input id="key" type="password" autocomplete="current-password" placeholder="Enter admin key">
+    <button class="btn" id="go">Sign in</button>
+    <p class="msg" id="loginMsg"></p>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><b id="sOrders">0</b>orders</div>
+        <div class="stat"><b id="sUnits">0</b>items</div>
+        <div class="stat"><b id="sTotal">$0</b>total owed</div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="dlPdf">Download master PDF</button>
+        <button class="btn ghost" id="dlCsv">Download CSV</button>
+        <button class="btn ghost" id="refresh">Refresh</button>
+        <button class="btn ghost" id="out">Sign out</button>
+      </div>
+      <p class="msg" id="appMsg"></p>
+    </div>
+
+    <div class="card">
+      <b>By seller</b>
+      <div class="tablewrap"><table id="bySeller"></table></div>
+    </div>
+
+    <div class="card">
+      <b>All orders</b> <small>(newest first)</small>
+      <div class="tablewrap"><table id="orders"></table></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { products } from "/catalog.js";
+
+const $ = (id) => document.getElementById(id);
+let key = "";
+try { key = sessionStorage.getItem("adminKey") || ""; } catch {}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), "x-admin-key": key } });
+  if (res.status === 401) throw new Error("Wrong admin key.");
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Request failed.");
+  return res;
+}
+function el(tag, text, cls) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
+
+async function download(path, filename) {
+  $("appMsg").textContent = "";
+  try {
+    const blob = await (await api(path)).blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) { $("appMsg").textContent = e.message; }
+}
+
+function tableRow(cells, header = false) {
+  const tr = document.createElement("tr");
+  for (const c of cells) {
+    const td = el(header ? "th" : "td", c.t, c.num ? "num" : "");
+    if (c.node) { td.textContent = ""; td.append(c.node); }
+    tr.append(td);
+  }
+  return tr;
+}
+
+function render(orders) {
+  $("sOrders").textContent = orders.length;
+  $("sUnits").textContent = orders.reduce((s, o) => s + o.units, 0);
+  $("sTotal").textContent = "$" + orders.reduce((s, o) => s + o.total, 0);
+
+  const by = new Map();
+  for (const o of orders) {
+    const k = o.seller.trim().toLowerCase();
+    const e = by.get(k) || { seller: o.seller, n: 0, units: 0, total: 0 };
+    e.n++; e.units += o.units; e.total += o.total; by.set(k, e);
+  }
+  const bs = $("bySeller"); bs.replaceChildren();
+  bs.append(tableRow([{ t: "Seller" }, { t: "Orders", num: 1 }, { t: "Items", num: 1 }, { t: "Total", num: 1 }], true));
+  [...by.values()].sort((a, b) => b.total - a.total).forEach((e) =>
+    bs.append(tableRow([{ t: e.seller }, { t: e.n, num: 1 }, { t: e.units, num: 1 }, { t: "$" + e.total, num: 1 }])));
+  if (!by.size) bs.append(tableRow([{ t: "No orders yet." }, { t: "" }, { t: "" }, { t: "" }]));
+
+  const tb = $("orders"); tb.replaceChildren();
+  tb.append(tableRow([{ t: "When" }, { t: "Seller" }, { t: "Customer" }, { t: "Items" }, { t: "Total", num: 1 }, { t: "" }], true));
+  for (const o of orders) {
+    const items = el("div");
+    o.qty.forEach((q, i) => { if (q > 0) items.append(el("div", `${q} × ${products[i].name} (${products[i].group})`, "small")); });
+    const who = el("div"); who.append(el("b", o.customerName), el("div", o.phone + (o.email ? " · " + o.email : ""), "small"));
+    const acts = el("div");
+    const pdf = el("button", "PDF", "btn sm ghost"); pdf.onclick = () => download("/api/export?format=pdf&id=" + encodeURIComponent(o.id), `order-${o.id}.pdf`);
+    const del = el("button", "Delete", "btn sm danger"); del.style.marginLeft = "6px";
+    del.onclick = async () => {
+      if (!confirm(`Delete the order from ${o.customerName}?`)) return;
+      try { await api("/api/orders?id=" + encodeURIComponent(o.id), { method: "DELETE" }); await load(); } catch (e) { $("appMsg").textContent = e.message; }
+    };
+    acts.append(pdf, del);
+    tb.append(tableRow([
+      { t: new Date(o.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) },
+      { t: o.seller }, { node: who }, { node: items }, { t: "$" + o.total, num: 1 }, { node: acts },
+    ]));
+  }
+  if (!orders.length) tb.append(tableRow([{ t: "No orders yet." }, { t: "" }, { t: "" }, { t: "" }, { t: "" }, { t: "" }]));
+}
+
+async function load() {
+  const { orders } = await (await api("/api/orders")).json();
+  render(orders);
+  $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+}
+
+async function signIn() {
+  key = $("key").value || key;
+  $("loginMsg").textContent = "";
+  try { await load(); try { sessionStorage.setItem("adminKey", key); } catch {} }
+  catch (e) { $("loginMsg").textContent = e.message; key = ""; }
+}
+
+$("go").onclick = signIn;
+$("key").addEventListener("keydown", (e) => e.key === "Enter" && signIn());
+$("refresh").onclick = () => load().catch((e) => ($("appMsg").textContent = e.message));
+$("dlPdf").onclick = () => download("/api/export?format=pdf", "master-orders.pdf");
+$("dlCsv").onclick = () => download("/api/export?format=csv", "orders.csv");
+$("out").onclick = () => { try { sessionStorage.removeItem("adminKey"); } catch {} key = ""; location.reload(); };
+if (key) signIn();
+</script>
+</body>
+</html>
