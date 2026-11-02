@@ -65,6 +65,11 @@ assert.equal((await put("nope", { customerName: "X", phone: "8125550000", qty: q
 const afterEdit = (await (await orders(admin("/api/orders"))).json()).orders.find((o) => o.id === target.id);
 assert.equal(afterEdit.customerName, "Edited Name");
 
+// tally form
+const tally = await exp(admin("/api/export?format=tally"));
+assert.equal(tally.status, 200); assert.equal(tally.headers.get("content-type"), "application/pdf");
+assert.equal((await exp(admin("/api/export?format=tally", "GET", "wrong"))).status, 401);
+
 // paid toggle
 const patch = (id, body, key = "test-key-123") =>
   orders(new Request("http://x/api/orders?id=" + id, { method: "PATCH", body: JSON.stringify(body), headers: { "x-admin-key": key } }));

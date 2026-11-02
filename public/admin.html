@@ -84,6 +84,7 @@
       </div>
       <div class="actions">
         <button class="btn" id="dlPdf">Download master PDF</button>
+        <button class="btn" id="dlTally">Download tally form</button>
         <button class="btn ghost" id="dlCsv">Download CSV</button>
         <button class="btn ghost" id="refresh">Refresh</button>
         <button class="btn ghost" id="out">Sign out</button>
@@ -261,6 +262,7 @@ $("go").onclick = signIn;
 $("key").addEventListener("keydown", (e) => e.key === "Enter" && signIn());
 $("refresh").onclick = () => load().catch((e) => ($("appMsg").textContent = e.message));
 $("dlPdf").onclick = () => download("/api/export?format=pdf", "master-orders.pdf");
+$("dlTally").onclick = () => download("/api/export?format=tally", "tally-form.pdf");
 $("dlCsv").onclick = () => download("/api/export?format=csv", "orders.csv");
 $("out").onclick = () => { try { sessionStorage.removeItem("adminKey"); } catch {} key = ""; location.reload(); };
 if (key) signIn();
