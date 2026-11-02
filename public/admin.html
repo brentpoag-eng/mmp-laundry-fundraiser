@@ -26,14 +26,24 @@
   .stat { flex:1; min-width:120px; background:#eef3fa; border-radius:10px; padding:10px 14px; }
   .stat b { display:block; font-size:1.4rem; }
   .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
-  table { width:100%; border-collapse:collapse; }
-  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #eef2f7; vertical-align:top; }
-  th { font-size:.78rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
-  td.num, th.num { text-align:right; }
-  .tablewrap { overflow-x:auto; }
-  .msg { color:var(--danger); font-weight:600; min-height:1.3em; }
+  .msg { color:var(--danger); font-weight:600; margin:8px 0 0; }
   .hidden { display:none !important; }
   small { color: var(--muted); }
+  .olist { margin-top:10px; }
+  .order { display:grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1.6fr) auto; gap:10px 16px; padding:12px 4px; border-top:1px solid #eef2f7; align-items:start; }
+  .order .who b { display:block; overflow-wrap:anywhere; }
+  .order .who small { display:block; overflow-wrap:anywhere; }
+  .order .its { font-size:.88rem; }
+  .order .its div { padding:1px 0; }
+  .order .side { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .order .side .amt { font-size:1.15rem; font-weight:700; }
+  .order .btns { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .empty { padding:14px 4px; color:var(--muted); }
+  @media (max-width: 640px) {
+    .order { grid-template-columns: 1fr; }
+    .order .side { flex-direction:row; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+    .order .btns { justify-content:flex-start; }
+  }
   .btn.paid { background:#1f7a3d; }
   .btn.unpaid { background:#fff; color:#8a5a00; border:1px solid #c98a00; }
   dialog { border:1px solid var(--line); border-radius:14px; padding:0; width:min(560px, 94vw); max-height:92vh; }
@@ -82,14 +92,9 @@
     </div>
 
     <div class="card">
-      <b>By seller</b>
-      <div class="tablewrap"><table id="bySeller"></table></div>
-    </div>
-
-    <div class="card">
       <b>All orders</b> <small>(newest first)</small>
       <label style="margin-left:12px;font-size:.9rem"><input type="checkbox" id="unpaidOnly"> Unpaid only</label>
-      <div class="tablewrap"><table id="orders"></table></div>
+      <div id="orders" class="olist"></div>
     </div>
   </div>
 </div>
@@ -183,16 +188,6 @@ $("eSave").onclick = async () => {
   $("eSave").disabled = false;
 };
 
-function tableRow(cells, header = false) {
-  const tr = document.createElement("tr");
-  for (const c of cells) {
-    const td = el(header ? "th" : "td", c.t, c.num ? "num" : "");
-    if (c.node) { td.textContent = ""; td.append(c.node); }
-    tr.append(td);
-  }
-  return tr;
-}
-
 let allOrders = [];
 $("unpaidOnly").onchange = () => render(allOrders);
 
@@ -212,42 +207,41 @@ function render(orders) {
   $("sDue").textContent = "$" + sum(orders.filter((o) => !o.paid));
   const shown = $("unpaidOnly").checked ? orders.filter((o) => !o.paid) : orders;
 
-  const by = new Map();
-  for (const o of orders) {
-    const k = o.seller.trim().toLowerCase();
-    const e = by.get(k) || { seller: o.seller, n: 0, units: 0, total: 0 };
-    e.n++; e.units += o.units; e.total += o.total; by.set(k, e);
-  }
-  const bs = $("bySeller"); bs.replaceChildren();
-  bs.append(tableRow([{ t: "Seller" }, { t: "Orders", num: 1 }, { t: "Items", num: 1 }, { t: "Total", num: 1 }], true));
-  [...by.values()].sort((a, b) => b.total - a.total).forEach((e) =>
-    bs.append(tableRow([{ t: e.seller }, { t: e.n, num: 1 }, { t: e.units, num: 1 }, { t: "$" + e.total, num: 1 }])));
-  if (!by.size) bs.append(tableRow([{ t: "No orders yet." }, { t: "" }, { t: "" }, { t: "" }]));
-
-  const tb = $("orders"); tb.replaceChildren();
-  tb.append(tableRow([{ t: "When" }, { t: "Seller" }, { t: "Customer" }, { t: "Items" }, { t: "Total", num: 1 }, { t: "Paid" }, { t: "" }], true));
+  const list = $("orders"); list.replaceChildren();
   for (const o of shown) {
-    const items = el("div");
-    o.qty.forEach((q, i) => { if (q > 0) items.append(el("div", `${q} × ${products[i].name} (${products[i].group})`, "small")); });
-    const who = el("div"); who.append(el("b", o.customerName), el("div", o.phone + (o.email ? " · " + o.email : ""), "small"));
-    const acts = el("div");
-    const pdf = el("button", "PDF", "btn sm ghost"); pdf.onclick = () => download("/api/export?format=pdf&id=" + encodeURIComponent(o.id), `order-${o.id}.pdf`);
-    const edit = el("button", "Edit", "btn sm"); edit.style.marginLeft = "6px"; edit.onclick = () => openEdit(o);
-    const del = el("button", "Delete", "btn sm danger"); del.style.marginLeft = "6px";
+    const row = el("div", null, "order");
+
+    const who = el("div", null, "who");
+    who.append(
+      el("b", o.customerName),
+      el("small", o.phone + (o.email ? " \u00b7 " + o.email : "")),
+      el("small", new Date(o.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))
+    );
+
+    const its = el("div", null, "its");
+    o.qty.forEach((q, i) => {
+      if (q > 0) its.append(el("div", `${q} \u00d7 ${products[i].group.replace(/\s*\(.*?\)\s*/g, " ").trim()}: ${products[i].name}`));
+    });
+
+    const side = el("div", null, "side");
+    side.append(el("span", "$" + o.total, "amt"));
+    const btns = el("div", null, "btns");
+    const paidBtn = el("button", o.paid ? "\u2713 Paid" : "Mark paid", o.paid ? "btn sm paid" : "btn sm unpaid");
+    paidBtn.title = o.paid ? "Paid " + new Date(o.paidAt).toLocaleString() + " (click to undo)" : "Mark this order as paid";
+    paidBtn.onclick = () => (o.paid && !confirm(`Mark ${o.customerName}'s order as NOT paid?`) ? null : setPaid(o, !o.paid));
+    const edit = el("button", "Edit", "btn sm ghost"); edit.onclick = () => openEdit(o);
+    const del = el("button", "Delete", "btn sm danger");
     del.onclick = async () => {
       if (!confirm(`Delete the order from ${o.customerName}?`)) return;
       try { await api("/api/orders?id=" + encodeURIComponent(o.id), { method: "DELETE" }); await load(); } catch (e) { $("appMsg").textContent = e.message; }
     };
-    acts.append(pdf, edit, del);
-    const paidBtn = el("button", o.paid ? "\u2713 Paid" : "Mark paid", o.paid ? "btn sm paid" : "btn sm unpaid");
-    paidBtn.title = o.paid ? "Paid " + new Date(o.paidAt).toLocaleString() + " (click to undo)" : "Mark this order as paid";
-    paidBtn.onclick = () => (o.paid && !confirm(`Mark ${o.customerName}'s order as NOT paid?`) ? null : setPaid(o, !o.paid));
-    tb.append(tableRow([
-      { t: new Date(o.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) },
-      { t: o.seller }, { node: who }, { node: items }, { t: "$" + o.total, num: 1 }, { node: paidBtn }, { node: acts },
-    ]));
+    btns.append(paidBtn, edit, del);
+    side.append(btns);
+
+    row.append(who, its, side);
+    list.append(row);
   }
-  if (!shown.length) tb.append(tableRow([{ t: orders.length ? "No unpaid orders." : "No orders yet." }, { t: "" }, { t: "" }, { t: "" }, { t: "" }, { t: "" }, { t: "" }]));
+  if (!shown.length) list.append(el("div", orders.length ? "No unpaid orders." : "No orders yet.", "empty"));
 }
 
 async function load() {
