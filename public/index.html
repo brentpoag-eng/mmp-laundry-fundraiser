@@ -68,6 +68,8 @@
   .wrap { position: relative; }
   .done h2 { color: var(--ok); }
   .done a { color: var(--blue); }
+  .done .venmo-btn { display: block; text-align: center; text-decoration: none; background: #3d95ce; color: #fff; font-size: 1.1rem; padding: 15px 18px; border-radius: 12px; margin: 14px 0 4px; }
+  .done .venmo-note { margin: 6px 0 14px; font-size: .88rem; color: var(--muted); text-align: center; }
   .done ul { padding-left: 20px; margin: 8px 0; }
   .hidden { display: none !important; }
 </style>
@@ -231,8 +233,19 @@ function showDone(body) {
   const pay = document.createElement("p");
   if (site.payableTo) pay.textContent = `Please make checks payable to: ${site.payableTo}.`;
   else pay.hidden = true;
+  const venmo = document.createElement("div");
+  venmo.className = "venmo";
+  if (site.venmoUrl) {
+    const vb = document.createElement("a");
+    vb.className = "btn venmo-btn"; vb.href = site.venmoUrl; vb.target = "_blank"; vb.rel = "noopener";
+    vb.textContent = `Pay $${total} with Venmo`;
+    const vn = document.createElement("p");
+    vn.className = "venmo-note";
+    vn.textContent = `Please include your name (${body.customerName.trim()}) in the Venmo note.`;
+    venmo.append(vb, vn);
+  }
   const ask = document.createElement("p");
-  ask.append("To coordinate payment, please call or text ");
+  ask.append(site.venmoUrl ? "Prefer cash or check? Please call or text " : "To coordinate payment, please call or text ");
   site.contacts.forEach((c, i) => {
     const a = document.createElement("a");
     a.href = "tel:+1" + c.phone; a.textContent = formatPhone(c.phone); a.style.fontWeight = "700";
@@ -242,7 +255,7 @@ function showDone(body) {
   ask.append(".");
   const again = document.createElement("button"); again.className = "btn ghost"; again.type = "button"; again.textContent = "Place another order";
   again.onclick = () => { qty.fill(0); update(); $("customerName").value = ""; $("phone").value = ""; $("email").value = ""; $("done").classList.add("hidden"); $("form").classList.remove("hidden"); $("bar").classList.remove("hidden"); btn.disabled = false; btn.textContent = "Place order"; window.scrollTo(0, 0); };
-  done.append(h, p, ul, pay, ask, again);
+  done.append(h, p, ul, venmo, pay, ask, again);
   $("form").classList.add("hidden"); $("bar").classList.add("hidden"); done.classList.remove("hidden");
   window.scrollTo(0, 0);
 }
