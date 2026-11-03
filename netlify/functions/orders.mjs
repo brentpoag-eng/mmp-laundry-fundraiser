@@ -1,4 +1,4 @@
-import { isAdmin, json } from "./lib/auth.mjs";
+import { adminUser, json } from "./lib/auth.mjs";
 import { ordersStore, loadAll } from "./lib/store.mjs";
 import { updateOrder } from "./lib/orders.mjs";
 
@@ -7,10 +7,11 @@ import { updateOrder } from "./lib/orders.mjs";
 // PUT /api/orders?id=...     -> edit one order (admin)
 // DELETE /api/orders?id=...  -> remove one order (admin)
 export default async (req) => {
-  if (!isAdmin(req)) return json({ error: "Unauthorized." }, 401);
+  const user = adminUser(req);
+  if (!user) return json({ error: "Unauthorized." }, 401);
 
   const store = ordersStore();
-  if (req.method === "GET") return json({ orders: await loadAll(store) });
+  if (req.method === "GET") return json({ orders: await loadAll(store), user });
 
   if (req.method === "PATCH") {
     const id = new URL(req.url).searchParams.get("id");
@@ -20,7 +21,7 @@ export default async (req) => {
     let body;
     try { body = await req.json(); } catch { return json({ error: "Invalid request." }, 400); }
     if (typeof body?.paid !== "boolean") return json({ error: "paid must be true or false." }, 400);
-    const order = { ...existing, paid: body.paid, paidAt: body.paid ? new Date().toISOString() : null };
+    const order = { ...existing, paid: body.paid, paidAt: body.paid ? new Date().toISOString() : null, paidBy: body.paid ? user : null };
     await store.setJSON(id, order);
     return json({ ok: true, order });
   }
@@ -34,6 +35,7 @@ export default async (req) => {
     try { body = await req.json(); } catch { return json({ error: "Invalid request." }, 400); }
     const { order, error } = updateOrder(existing, body);
     if (error) return json({ error }, 400);
+    order.updatedBy = user;
     await store.setJSON(id, order);
     return json({ ok: true, order });
   }

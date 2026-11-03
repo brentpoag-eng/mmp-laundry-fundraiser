@@ -88,6 +88,7 @@
         <button class="btn ghost" id="dlCsv">Download CSV</button>
         <button class="btn ghost" id="refresh">Refresh</button>
         <button class="btn ghost" id="out">Sign out</button>
+        <span id="who" style="align-self:center;color:var(--muted);font-size:.9rem"></span>
       </div>
       <p class="msg" id="appMsg"></p>
     </div>
@@ -228,7 +229,7 @@ function render(orders) {
     side.append(el("span", "$" + o.total, "amt"));
     const btns = el("div", null, "btns");
     const paidBtn = el("button", o.paid ? "\u2713 Paid" : "Mark paid", o.paid ? "btn sm paid" : "btn sm unpaid");
-    paidBtn.title = o.paid ? "Paid " + new Date(o.paidAt).toLocaleString() + " (click to undo)" : "Mark this order as paid";
+    paidBtn.title = o.paid ? "Paid " + new Date(o.paidAt).toLocaleString() + (o.paidBy ? " by " + o.paidBy : "") + " (click to undo)" : "Mark this order as paid";
     paidBtn.onclick = () => (o.paid && !confirm(`Mark ${o.customerName}'s order as NOT paid?`) ? null : setPaid(o, !o.paid));
     const edit = el("button", "Edit", "btn sm ghost"); edit.onclick = () => openEdit(o);
     const del = el("button", "Delete", "btn sm danger");
@@ -246,7 +247,8 @@ function render(orders) {
 }
 
 async function load() {
-  const { orders } = await (await api("/api/orders")).json();
+  const { orders, user } = await (await api("/api/orders")).json();
+  $("who").textContent = user ? "Signed in as " + user : "";
   render(orders);
   $("login").classList.add("hidden"); $("app").classList.remove("hidden");
 }

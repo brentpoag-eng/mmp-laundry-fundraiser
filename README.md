@@ -13,6 +13,7 @@ Functions need a real build, so drag-and-drop deploy will not work. Use either:
 ## Settings (Netlify > Site configuration > Environment variables)
 
 - `ADMIN_KEY` (required): password for `/admin.html`. Pick something long, then redeploy.
+- `ADMIN_KEY_<NAME>` (optional): one extra login per person, e.g. `ADMIN_KEY_LAURA`. The page shows "Signed in as Laura" and records who marked an order paid. Delete the variable and redeploy to remove that person.
 
 ## Edit before going live
 

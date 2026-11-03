@@ -1,4 +1,4 @@
-import { isAdmin, json } from "./lib/auth.mjs";
+import { adminUser, json } from "./lib/auth.mjs";
 import { ordersStore, loadAll } from "./lib/store.mjs";
 import { buildPdf } from "./lib/pdf.mjs";
 import { buildTally } from "./lib/tally.mjs";
@@ -9,7 +9,7 @@ import { ordersToCsv } from "./lib/csv.mjs";
 // GET /api/export?format=csv            -> all orders as CSV
 // GET /api/export?format=tally          -> vendor's Individual Tally Form with totals per product
 export default async (req) => {
-  if (!isAdmin(req)) return json({ error: "Unauthorized." }, 401);
+  if (!adminUser(req)) return json({ error: "Unauthorized." }, 401);
 
   const url = new URL(req.url);
   const format = url.searchParams.get("format") || "pdf";

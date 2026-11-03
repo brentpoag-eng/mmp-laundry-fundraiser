@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 
 process.env.ADMIN_KEY = "test-key-123";
+process.env.ADMIN_KEY_LAURA = "laura-key-456";
 const submit = (await import("./bundle/submit.mjs")).default;
 const orders = (await import("./bundle/orders.mjs")).default;
 const exp = (await import("./bundle/export.mjs")).default;
@@ -28,6 +29,14 @@ assert.equal((await r.json()).ok, true);
 // auth
 assert.equal((await orders(admin("/api/orders", "GET", "wrong"))).status, 401);
 assert.equal((await exp(admin("/api/export?format=csv", "GET", ""))).status, 401);
+
+// named keys
+let who = await (await orders(admin("/api/orders", "GET", "laura-key-456"))).json();
+assert.equal(who.user, "Laura");
+who = await (await orders(admin("/api/orders"))).json();
+assert.equal(who.user, "Admin");
+assert.equal((await orders(admin("/api/orders", "GET", "laura-key-45"))).status, 401);
+assert.equal((await exp(admin("/api/export?format=csv", "GET", "laura-key-456"))).status, 200);
 
 // list: honeypot must NOT have stored anything
 let list = (await (await orders(admin("/api/orders"))).json()).orders;
@@ -86,6 +95,12 @@ r = await put(target.id, { customerName: "Edited Name", phone: "8125559999", qty
 assert.equal((await r.json()).order.paid, true);
 j = await (await patch(target.id, { paid: false })).json();
 assert.equal(j.order.paid, false); assert.equal(j.order.paidAt, null);
+await patch(target.id, { paid: true });
+
+// who marked it paid
+await patch(target.id, { paid: false });
+j = await (await orders(new Request("http://x/api/orders?id=" + target.id, { method: "PATCH", body: JSON.stringify({ paid: true }), headers: { "x-admin-key": "laura-key-456" } }))).json();
+assert.equal(j.order.paidBy, "Laura");
 await patch(target.id, { paid: true });
 
 // delete
