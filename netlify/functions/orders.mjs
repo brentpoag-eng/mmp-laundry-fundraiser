@@ -1,9 +1,10 @@
 import { adminUser, json } from "./lib/auth.mjs";
 import { ordersStore, loadAll } from "./lib/store.mjs";
 import { updateOrder } from "./lib/orders.mjs";
+import { payMethods } from "../../public/catalog.js";
 
 // GET /api/orders            -> list all orders (admin)
-// PATCH /api/orders?id=...   -> mark paid / unpaid: {paid: true|false} (admin)
+// PATCH /api/orders?id=...   -> mark paid / unpaid: {paid: true, method: "cash_check"|"venmo"|"paypal"} or {paid: false} (admin)
 // PUT /api/orders?id=...     -> edit one order (admin)
 // DELETE /api/orders?id=...  -> remove one order (admin)
 export default async (req) => {
@@ -21,7 +22,16 @@ export default async (req) => {
     let body;
     try { body = await req.json(); } catch { return json({ error: "Invalid request." }, 400); }
     if (typeof body?.paid !== "boolean") return json({ error: "paid must be true or false." }, 400);
-    const order = { ...existing, paid: body.paid, paidAt: body.paid ? new Date().toISOString() : null, paidBy: body.paid ? user : null };
+    if (body.paid && !Object.hasOwn(payMethods, body.method)) return json({ error: "Choose how it was paid: Cash/Check, Venmo or PayPal." }, 400);
+    // Changing the method of an already-paid order keeps the original paid date and person.
+    const keep = body.paid && existing.paid;
+    const order = {
+      ...existing,
+      paid: body.paid,
+      paidAt: body.paid ? (keep && existing.paidAt) || new Date().toISOString() : null,
+      paidBy: body.paid ? (keep && existing.paidBy) || user : null,
+      payMethod: body.paid ? body.method : null,
+    };
     await store.setJSON(id, order);
     return json({ ok: true, order });
   }

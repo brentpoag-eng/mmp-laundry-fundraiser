@@ -84,24 +84,29 @@ const patch = (id, body, key = "test-key-123") =>
   orders(new Request("http://x/api/orders?id=" + id, { method: "PATCH", body: JSON.stringify(body), headers: { "x-admin-key": key } }));
 assert.equal((await patch(target.id, { paid: true }, "wrong")).status, 401);
 assert.equal((await patch(target.id, { paid: "yes" })).status, 400);
+assert.equal((await patch(target.id, { paid: true })).status, 400); // method required
+assert.equal((await patch(target.id, { paid: true, method: "bitcoin" })).status, 400);
 assert.equal((await patch("nope", { paid: true })).status, 404);
-j = await (await patch(target.id, { paid: true })).json();
-assert.equal(j.order.paid, true); assert.ok(j.order.paidAt);
+j = await (await patch(target.id, { paid: true, method: "venmo" })).json();
+assert.equal(j.order.paid, true); assert.ok(j.order.paidAt); assert.equal(j.order.payMethod, "venmo");
+const firstPaidAt = j.order.paidAt;
+j = await (await patch(target.id, { paid: true, method: "cash_check" })).json();
+assert.equal(j.order.payMethod, "cash_check"); assert.equal(j.order.paidAt, firstPaidAt);
 let csv2 = await (await exp(admin("/api/export?format=csv"))).text();
-assert.match(csv2, /,Yes,20/);
+assert.match(csv2, /,Yes,20[^,]*,Cash\/Check,/);
 writeFileSync(new URL("./out-paid.pdf", import.meta.url), Buffer.from(await (await exp(admin(`/api/export?format=pdf&id=${target.id}`))).arrayBuffer()));
 // editing keeps paid status
 r = await put(target.id, { customerName: "Edited Name", phone: "8125559999", qty: q2 });
 assert.equal((await r.json()).order.paid, true);
 j = await (await patch(target.id, { paid: false })).json();
-assert.equal(j.order.paid, false); assert.equal(j.order.paidAt, null);
-await patch(target.id, { paid: true });
+assert.equal(j.order.paid, false); assert.equal(j.order.paidAt, null); assert.equal(j.order.payMethod, null);
+await patch(target.id, { paid: true, method: "paypal" });
 
 // who marked it paid
 await patch(target.id, { paid: false });
-j = await (await orders(new Request("http://x/api/orders?id=" + target.id, { method: "PATCH", body: JSON.stringify({ paid: true }), headers: { "x-admin-key": "laura-key-456" } }))).json();
+j = await (await orders(new Request("http://x/api/orders?id=" + target.id, { method: "PATCH", body: JSON.stringify({ paid: true, method: "venmo" }), headers: { "x-admin-key": "laura-key-456" } }))).json();
 assert.equal(j.order.paidBy, "Laura");
-await patch(target.id, { paid: true });
+await patch(target.id, { paid: true, method: "venmo" });
 
 // delete
 assert.equal((await orders(admin(`/api/orders?id=${list[0].id}`, "DELETE"))).status, 200);

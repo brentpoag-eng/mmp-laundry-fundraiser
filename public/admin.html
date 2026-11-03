@@ -44,6 +44,9 @@
     .order .side { flex-direction:row; justify-content:space-between; align-items:center; flex-wrap:wrap; }
     .order .btns { justify-content:flex-start; }
   }
+  .methods { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .methods .btn { padding:14px 6px; font-size:1rem; }
+  .methods .btn.cur { outline:3px solid #1f7a3d; outline-offset:2px; }
   .btn.paid { background:#1f7a3d; }
   .btn.unpaid { background:#fff; color:#8a5a00; border:1px solid #c98a00; }
   dialog { border:1px solid var(--line); border-radius:14px; padding:0; width:min(560px, 94vw); max-height:92vh; }
@@ -90,6 +93,7 @@
         <button class="btn ghost" id="out">Sign out</button>
         <span id="who" style="align-self:center;color:var(--muted);font-size:.9rem"></span>
       </div>
+      <p id="payBreak" style="margin:10px 0 0;font-size:.9rem;color:var(--muted)"></p>
       <p class="msg" id="appMsg"></p>
     </div>
 
@@ -100,6 +104,19 @@
     </div>
   </div>
 </div>
+
+<dialog id="payDlg">
+  <div class="dlg">
+    <h2 id="pTitle">Mark as paid</h2>
+    <p id="pAmt" style="margin:0"></p>
+    <div class="methods" id="pMethods"></div>
+    <p class="msg" id="pMsg"></p>
+    <div class="dlg-foot">
+      <button type="button" class="btn sm danger hidden" id="pUnpaid">Mark as NOT paid</button>
+      <button type="button" class="btn ghost" id="pCancel">Cancel</button>
+    </div>
+  </div>
+</dialog>
 
 <dialog id="dlg">
   <form class="dlg" method="dialog" id="editForm" novalidate>
@@ -117,7 +134,7 @@
 </dialog>
 
 <script type="module">
-import { products, formatPhone } from "/catalog.js";
+import { products, formatPhone, payMethods } from "/catalog.js";
 
 const $ = (id) => document.getElementById(id);
 let key = "";
@@ -193,11 +210,32 @@ $("eSave").onclick = async () => {
 let allOrders = [];
 $("unpaidOnly").onchange = () => render(allOrders);
 
-async function setPaid(o, paid) {
-  $("appMsg").textContent = "";
-  try { await api("/api/orders?id=" + encodeURIComponent(o.id), { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ paid }) }); await load(); }
-  catch (e) { $("appMsg").textContent = e.message; }
+async function setPaid(o, paid, method) {
+  $("appMsg").textContent = ""; $("pMsg").textContent = "";
+  try {
+    await api("/api/orders?id=" + encodeURIComponent(o.id), { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ paid, method }) });
+    $("payDlg").close(); await load();
+  } catch (e) { $("pMsg").textContent = e.message; $("appMsg").textContent = e.message; }
 }
+
+// ---- payment dialog ----
+let payFor = null;
+for (const [key, label] of Object.entries(payMethods)) {
+  const b = el("button", label, "btn"); b.type = "button"; b.dataset.m = key;
+  b.onclick = () => setPaid(payFor, true, key);
+  $("pMethods").append(b);
+}
+function openPay(o) {
+  payFor = o;
+  $("pTitle").textContent = o.paid ? "Payment for " + o.customerName : "Mark " + o.customerName + " as paid";
+  $("pAmt").textContent = (o.paid ? "Paid " : "Amount: ") + "$" + o.total + (o.paid ? " via " + (payMethods[o.payMethod] || "(method not recorded)") + ". Pick a method to change it." : ". How did they pay?");
+  $("pMsg").textContent = "";
+  $("pMethods").querySelectorAll("button").forEach((b) => b.classList.toggle("cur", o.paid && b.dataset.m === o.payMethod));
+  $("pUnpaid").classList.toggle("hidden", !o.paid);
+  $("payDlg").showModal();
+}
+$("pCancel").onclick = () => $("payDlg").close();
+$("pUnpaid").onclick = () => { if (confirm(`Mark ${payFor.customerName}'s order as NOT paid?`)) setPaid(payFor, false); };
 
 function render(orders) {
   allOrders = orders;
@@ -207,6 +245,10 @@ function render(orders) {
   $("sTotal").textContent = "$" + sum(orders);
   $("sPaid").textContent = "$" + sum(orders.filter((o) => o.paid));
   $("sDue").textContent = "$" + sum(orders.filter((o) => !o.paid));
+  const parts = Object.entries(payMethods).map(([k, label]) => [label, sum(orders.filter((o) => o.paid && o.payMethod === k))]);
+  const unk = sum(orders.filter((o) => o.paid && !payMethods[o.payMethod]));
+  if (unk) parts.push(["Method not recorded", unk]);
+  $("payBreak").textContent = "Collected by method: " + parts.map(([l, v]) => `${l} $${v}`).join(" \u00b7 ");
   const shown = $("unpaidOnly").checked ? orders.filter((o) => !o.paid) : orders;
 
   const list = $("orders"); list.replaceChildren();
@@ -228,9 +270,9 @@ function render(orders) {
     const side = el("div", null, "side");
     side.append(el("span", "$" + o.total, "amt"));
     const btns = el("div", null, "btns");
-    const paidBtn = el("button", o.paid ? "\u2713 Paid" : "Mark paid", o.paid ? "btn sm paid" : "btn sm unpaid");
-    paidBtn.title = o.paid ? "Paid " + new Date(o.paidAt).toLocaleString() + (o.paidBy ? " by " + o.paidBy : "") + " (click to undo)" : "Mark this order as paid";
-    paidBtn.onclick = () => (o.paid && !confirm(`Mark ${o.customerName}'s order as NOT paid?`) ? null : setPaid(o, !o.paid));
+    const paidBtn = el("button", o.paid ? "\u2713 Paid" + (payMethods[o.payMethod] ? " \u00b7 " + payMethods[o.payMethod] : "") : "Mark paid", o.paid ? "btn sm paid" : "btn sm unpaid");
+    paidBtn.title = o.paid ? "Paid " + new Date(o.paidAt).toLocaleString() + (o.paidBy ? " by " + o.paidBy : "") + " (click to change)" : "Mark this order as paid";
+    paidBtn.onclick = () => openPay(o);
     const edit = el("button", "Edit", "btn sm ghost"); edit.onclick = () => openEdit(o);
     const del = el("button", "Delete", "btn sm danger");
     del.onclick = async () => {

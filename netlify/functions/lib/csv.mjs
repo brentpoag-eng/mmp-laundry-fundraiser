@@ -1,4 +1,4 @@
-import { products } from "../../../public/catalog.js";
+import { products, payMethods } from "../../../public/catalog.js";
 
 // Neutralize spreadsheet formula injection (cells starting with = + - @) and quote as needed.
 const cell = (v) => {
@@ -18,6 +18,7 @@ export function ordersToCsv(orders) {
     "Total Cost",
     "Paid",
     "Paid At",
+    "Payment Method",
     ...products.map((p) => `${p.category} - ${p.group} - ${p.name}`),
   ];
   const rows = orders.map((o) => [
@@ -30,6 +31,7 @@ export function ordersToCsv(orders) {
     o.total,
     o.paid ? "Yes" : "No",
     o.paidAt || "",
+    payMethods[o.payMethod] || "",
     ...o.qty.map((q) => (q > 0 ? q : "")),
   ]);
   return [head, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";

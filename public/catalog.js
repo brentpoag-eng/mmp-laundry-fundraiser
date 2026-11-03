@@ -122,3 +122,6 @@ export const sections = [
 
 // "5 Gallon Liquid Tide (comparable, pump included)" -> "5 Gallon Liquid Tide"
 export const shortGroup = (g) => String(g).replace(/\s*\(.*?\)\s*/g, " ").trim();
+
+// How an order was paid (recorded by the admin when marking an order paid).
+export const payMethods = { cash_check: "Cash/Check", venmo: "Venmo", paypal: "PayPal" };
